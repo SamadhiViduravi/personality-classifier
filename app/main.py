@@ -12,7 +12,7 @@ app = FastAPI(
 )
 
 
-# ── Input schema (matches original CSV columns exactly) ────────────────────────
+
 class PersonData(BaseModel):
     Time_spent_Alone: float = Field(..., example=5,
         description="Hours spent alone per day (0-11)")
@@ -44,14 +44,14 @@ class PersonData(BaseModel):
     }
 
 
-# ── Output schema ──────────────────────────────────────────────────────────────
+
 class PredictionResponse(BaseModel):
     prediction: str = Field(..., example="Extrovert")
     confidence: float = Field(..., example=0.87)
     input_received: dict
 
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+
 @app.get("/", summary="Health check")
 def root():
     return {

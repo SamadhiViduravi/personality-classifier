@@ -1,23 +1,11 @@
-"""
-model_utils.py
---------------
-Loads all saved artifacts from the Colab training notebook and exposes
-a single `predict(raw_input)` function used by main.py.
 
-Artifact files expected in app/:
-  model.pkl          - Trained Stacking Ensemble (or LightGBM)
-  label_encoders.pkl - Dict of {col_name: LabelEncoder} for Yes/No cols
-  knn_imputer.pkl    - KNNImputer fitted on training data
-  feature_cols.pkl   - Ordered list of feature names (prevents col mismatch)
-  target_encoder.pkl - LabelEncoder mapping 0/1 -> class names
-"""
 
 import os
 import joblib
 import pandas as pd
 import numpy as np
 
-# ── Resolve paths relative to this file so it works from any working dir ───────
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
 def _load(filename):
@@ -30,7 +18,7 @@ def _load(filename):
     return joblib.load(path)
 
 
-# ── Load once at startup (module-level cache) ──────────────────────────────────
+
 print("Loading model artifacts...")
 _model          = _load("model.pkl")
 _label_encoders = _load("label_encoders.pkl")   # dict: {col: LabelEncoder}
@@ -39,7 +27,7 @@ _feature_cols   = _load("feature_cols.pkl")      # ordered list of feature names
 _target_encoder = _load("target_encoder.pkl")
 print(f"Model loaded: {type(_model).__name__}")
 
-# Columns that go through the KNN imputer (original 7, before engineering)
+# Columns that go through the KNN imputer
 _BASE_COLS = [
     "Time_spent_Alone",
     "Stage_fear",
@@ -65,35 +53,25 @@ def _validate_binary(value: str, col_name: str) -> str:
 
 
 def predict(raw_input: dict) -> dict:
-    """
-    Full inference pipeline — mirrors the Colab training notebook exactly.
 
-    Args:
-        raw_input: dict with the 7 original CSV column names as keys.
-
-    Returns:
-        dict with keys:
-          'prediction'  (str)   — 'Introvert' or 'Extrovert'
-          'confidence'  (float) — probability of the predicted class
-    """
-    # ── Step 1: Validate binary fields ────────────────────────────────────────
+    #Step 1: Validate binary fields
     binary_cols = list(_label_encoders.keys())
     for col in binary_cols:
         raw_input[col] = _validate_binary(raw_input[col], col)
 
-    # ── Step 2: Build single-row DataFrame ────────────────────────────────────
+    #Step 2: Build single-row DataFrame
     row = pd.DataFrame([raw_input])
 
-    # ── Step 3: Label-encode Yes/No columns ───────────────────────────────────
+    #Step 3: Label-encode Yes/No columns
     for col, le in _label_encoders.items():
         row[col] = le.transform(row[col].astype(str))
 
     row = row.astype(float)
 
-    # ── Step 4: KNN Impute (handles any NaN from optional fields) ─────────────
+    #Step 4: KNN Impute (handles any NaN from optional fields)
     row[_BASE_COLS] = _knn_imputer.transform(row[_BASE_COLS])
 
-    # ── Step 5: Feature engineering (must be IDENTICAL to training) ───────────
+    #Step 5: Feature engineering (must be IDENTICAL to training)
     row["social_score"] = (
         row["Social_event_attendance"]
         + row["Going_outside"]
@@ -115,10 +93,10 @@ def predict(raw_input: dict) -> dict:
         row["Friends_circle_size"] * row["Social_event_attendance"]
     )
 
-    # ── Step 6: Align column order to what the model was trained on ────────────
+    #Step 6: Align column order to what the model was trained on ────────────
     X = row[_feature_cols].values  # shape (1, n_features)
 
-    # ── Step 7: Predict ────────────────────────────────────────────────────────
+    #Step 7: Predict ────────────────────────────────────────────────────────
     pred_idx   = _model.predict(X)[0]
     pred_proba = _model.predict_proba(X)[0]
     label      = _target_encoder.inverse_transform([pred_idx])[0]
