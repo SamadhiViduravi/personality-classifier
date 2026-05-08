@@ -1,0 +1,16 @@
+# Python environment
+venv/
+__pycache__/
+*.py[cod]
+.env
+
+# Data files (Don't upload the raw CSV if it's huge, but fine if small)
+*.csv
+*.xlsx
+
+# System files
+.DS_Store
+.vscode/
+.idea/
+
+# DO NOT ignore .pkl files here because they are needed for deployment
